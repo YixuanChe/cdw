@@ -1,35 +1,736 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Teaching cameras to sort construction waste | Yixuan Che, Monash University</title>
-<meta name="description" content="Computer vision for sorting construction and demolition waste at any recycling facility. PhD research, Monash University.">
-<!-- Placeholder: keep out of search results until the full page is reviewed. Remove this line when the full page goes live. -->
-<meta name="robots" content="noindex">
+<meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#24282B">
+<title>Sorting starts with seeing | Yixuan Che</title>
+<meta name="description" content="AI vision for construction and demolition (C&amp;D) waste recycling: cameras that outline and name each piece on a sorting line. PhD research at Monash University. Tested on images so far; not yet at a working facility.">
+<link rel="canonical" href="https://yixuanche.github.io/cdw/">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Yixuan Che, Monash University">
+<meta property="og:locale" content="en_AU">
+<meta property="og:url" content="https://yixuanche.github.io/cdw/">
+<meta property="og:title" content="Sorting starts with seeing">
+<meta property="og:description" content="AI vision research for C&amp;D recycling at Monash University: model outputs on test scenes, the numbers behind it, where the work stands and how to get in touch.">
+<meta property="og:image" content="https://yixuanche.github.io/cdw/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Model output on a test scene: waste pieces outlined and tagged WOOD, FOAM, PLASTIC and BRICK; one board tagged WRONG: PLYWOOD; one piece marked MISSED">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&amp;family=Barlow+Condensed:wght@700;800&amp;display=swap">
 <style>
-  :root { --asphalt:#24282B; --hivis:#FFC800; --concrete:#E9EAE6; --ink2:#4B5155; }
+  :root {
+    --asph:#24282B; --asph2:#1A1D1F; --panel:#2E3337; --ink2:#4B5155; --mid:#6E7377;
+    --hivis:#FFC800; --conc:#E9EAE6; --line:#D9DAD5; --steel:#2F6690; --ochre:#9A6C00; --red:#E3242B;
+  }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color:var(--asphalt);
-         background:#fff; line-height:1.5; }
-  header { background:var(--hivis); padding:48px 20px 40px; }
-  .wrap { max-width:640px; margin:0 auto; }
-  h1 { font-size:clamp(30px, 8vw, 44px); line-height:1.08; font-weight:800; letter-spacing:-0.5px; }
-  .who { margin-top:16px; font-size:17px; }
-  main { padding:32px 20px 48px; }
-  p { font-size:17px; margin-bottom:16px; color:var(--ink2); }
-  a { color:var(--asphalt); font-weight:600; }
-  .note { background:var(--concrete); padding:16px 18px; border-radius:8px; color:var(--asphalt); }
+  html { scroll-behavior:smooth; scroll-padding-top:16px; scroll-padding-bottom:88px; -webkit-text-size-adjust:100%; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+  body { font-family:'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color:var(--asph); background:#fff; font-size:17px; line-height:1.55; }
+  img { max-width:100%; height:auto; display:block; }
+  a { color:var(--steel); font-weight:600; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline:3px solid var(--steel); outline-offset:3px; }
+  .dark a:focus-visible, .dark button:focus-visible, .dark summary:focus-visible, .hero a:focus-visible, .hero button:focus-visible, .hero summary:focus-visible { outline-color:var(--hivis); }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 20px; }
+  h1, h2, h3, .cond { font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; }
+  .vh { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+  /* ---------- hero ---------- */
+  .hz { height:8px; background:repeating-linear-gradient(135deg, var(--hivis) 0 12px, var(--asph2) 12px 24px); }
+  .hero { background:var(--asph); color:#fff; padding-bottom:40px; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0 4px; }
+  .brand { font-weight:600; font-size:15px; color:#fff; text-decoration:none; }
+  .brand span { color:#B9BDBB; font-weight:500; }
+  .top ul { display:none; list-style:none; gap:24px; align-items:center; }
+  .top ul a { color:#D9DAD5; text-decoration:none; font-weight:500; font-size:15px; }
+  .top ul a:hover { color:#fff; }
+  .top ul a.pill { color:var(--asph); background:var(--hivis); font-weight:600; padding:8px 14px; border-radius:8px; }
+  h1 { font-weight:800; font-size:clamp(44px, 13.6vw, 90px); line-height:.9; letter-spacing:-.5px; margin-top:22px; }
+  h1::after { content:""; display:block; width:68%; max-width:720px; height:.12em; background:var(--hivis); margin-top:.18em; }
+  .lead { font-size:19px; line-height:1.45; font-weight:500; margin:20px 0 16px; color:#F3F3F0; max-width:33em; }
+  .lead strong { color:#fff; font-weight:600; }
+  .status { display:inline-flex; align-items:stretch; background:#fff; color:var(--asph); border-radius:4px; overflow:hidden; font-weight:600; font-size:15.5px; line-height:1.3; }
+  .status i { flex:none; width:12px; background:repeating-linear-gradient(135deg, var(--hivis) 0 4px, var(--asph) 4px 8px); }
+  .status > span { padding:8px 12px 8px 10px; }
+  .nb { white-space:nowrap; }
+  .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+  .btn { display:inline-flex; align-items:center; gap:8px; min-height:48px; padding:0 18px; border-radius:8px; font-weight:600; font-size:16px; line-height:1.2; text-decoration:none; border:2px solid transparent; }
+  .btn svg { width:19px; height:19px; flex:none; }
+  .btn.y { background:var(--hivis); color:var(--asph); }
+  .btn.g { border-color:#8A9094; color:#fff; }
+  .btn.k { background:var(--asph); color:#fff; }
+  .btn.o { border-color:var(--asph); color:var(--asph); }
+  .btn.w { background:#fff; color:var(--asph); }
+
+  /* ---------- compare slider ---------- */
+  .demo { margin-top:30px; }
+  .demo-head { display:flex; align-items:flex-end; justify-content:space-between; gap:10px 16px; flex-wrap:wrap; margin-bottom:10px; }
+  .demo h2 { font-size:28px; font-weight:700; line-height:1.05; }
+  .tabs { display:flex; gap:6px; }
+  .tabs button { font:inherit; font-size:14px; font-weight:600; min-height:40px; padding:0 13px; border-radius:999px; border:1.5px solid #7A8084; background:transparent; color:#fff; cursor:pointer; }
+  .tabs button[aria-pressed="true"] { background:#fff; color:var(--asph); border-color:#fff; }
+  .cmp { --pos:38%; position:relative; aspect-ratio:1400 / 788; border-radius:10px; overflow:hidden; background:#111; touch-action:pan-y; user-select:none; -webkit-user-select:none; cursor:ew-resize; }
+  .cmp img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; -webkit-user-drag:none; transition:opacity .15s; }
+  .cmp.busy img { opacity:.55; }
+  .cmp-over { clip-path:inset(0 0 0 var(--pos)); }
+  .cmp-bar { position:absolute; top:0; bottom:0; left:var(--pos); width:3px; margin-left:-1.5px; background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.3); }
+  .cmp-knob { position:absolute; top:50%; left:50%; width:46px; height:46px; margin:-23px 0 0 -23px; border-radius:50%; background:var(--hivis); border:3px solid #fff; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,.5); color:var(--asph); }
+  .cmp-knob svg { width:24px; height:24px; }
+  .cmp-label { position:absolute; top:10px; font-size:12px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; padding:4px 8px; border-radius:4px; pointer-events:none; }
+  .cmp-label.l { left:10px; background:rgba(20,22,24,.8); color:#fff; }
+  .cmp-label.r { right:10px; background:var(--hivis); color:var(--asph); }
+  .cmp input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; pointer-events:none; }
+  .cmp:focus-within { outline:3px solid var(--hivis); outline-offset:3px; }
+  .hint { font-size:14px; color:#B9BDBB; margin-top:8px; display:flex; align-items:center; gap:8px; }
+  .hint svg { width:18px; height:18px; flex:none; }
+  .score { list-style:none; display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:12px; }
+  .score li { background:var(--panel); border-radius:8px; padding:10px 6px 9px; text-align:center; }
+  .score b { display:block; font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:800; font-size:36px; line-height:1; }
+  .score span { display:block; font-size:12.5px; line-height:1.25; color:#C9CCCA; margin-top:5px; }
+  .score .bad b { color:#FF7C80; }
+  .score .miss b { color:var(--hivis); }
+  .demo-note { font-size:15.5px; line-height:1.5; color:#E4E5E1; margin-top:12px; }
+  .legend { list-style:none; display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:14px; color:#C9CCCA; }
+  .legend li { display:flex; align-items:center; gap:7px; }
+  .tag { font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:700; font-size:13px; letter-spacing:.5px; padding:2px 6px; border-radius:3px; background:#1B1E20; color:#fff; border-left:4px solid #B5835A; }
+  .tag.wrong { background:var(--red); border-left-color:var(--red); }
+  .tag.missed { background:var(--hivis); color:var(--asph); border-left-color:var(--hivis); }
+  .honest { margin-top:14px; font-size:15.5px; line-height:1.5; color:#fff; border-left:4px solid var(--hivis); padding:2px 0 2px 12px; }
+
+  /* ---------- shared sections ---------- */
+  .band { padding:52px 0 46px; }
+  .band.conc { background:var(--conc); }
+  .band.dark { background:var(--asph); color:#fff; }
+  .band.yel { background:var(--hivis); }
+  .kicker { font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:700; font-size:17px; letter-spacing:1.4px; text-transform:uppercase; display:flex; align-items:center; gap:10px; margin-bottom:10px; color:var(--ink2); }
+  .kicker::before { content:""; width:22px; height:10px; background:repeating-linear-gradient(135deg, var(--hivis) 0 4px, var(--asph) 4px 8px); }
+  .dark .kicker { color:#C9CCCA; }
+  .yel .kicker { color:var(--asph); }
+  .yel .kicker::before { background:repeating-linear-gradient(135deg, #fff 0 4px, var(--asph) 4px 8px); }
+  h2.big { font-weight:800; font-size:clamp(34px, 8.8vw, 54px); line-height:1; letter-spacing:-.2px; max-width:19em; }
+  .sub { font-size:18px; line-height:1.5; margin-top:12px; max-width:40em; color:var(--ink2); }
+  .dark .sub { color:#E4E5E1; }
+  .yel .sub { color:var(--asph); font-weight:500; }
+  .fine { font-size:14.5px; color:var(--ink2); margin-top:14px; }
+  details { border:1px solid var(--line); border-radius:8px; padding:0 14px; margin:12px 0 0; background:#fff; }
+  details summary { font-weight:600; cursor:pointer; padding:12px 14px; margin:0 -14px; font-size:16px; }
+  details[open] { padding-bottom:12px; }
+  details ul, details ol { padding-left:20px; }
+  details li { margin-bottom:7px; font-size:15.5px; line-height:1.5; }
+  details p { font-size:15.5px; line-height:1.5; margin-bottom:8px; }
+  details figure { margin:10px 0 4px; }
+  details figcaption { font-size:14px; color:var(--ink2); margin-top:6px; }
+  .hero details, .dark details { background:var(--panel); border-color:#474D52; color:#E4E5E1; }
+  .hero details a, .dark details a, .dark a { color:#9CC4E4; }
+  blockquote { border-left:4px solid var(--conc); padding:4px 14px; color:var(--ink2); font-style:italic; margin:8px 0 4px; font-size:15.5px; }
+
+  /* ---------- why it matters ---------- */
+  .stats3 { display:grid; gap:14px; margin-top:26px; }
+  .stat { background:#fff; border-radius:12px; padding:20px 20px 18px; border-top:8px solid var(--asph); }
+  .stat .n { font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:800; font-size:clamp(68px, 20vw, 96px); line-height:.86; letter-spacing:-1px; }
+  .stat .n small { font-size:.42em; margin-left:.1em; letter-spacing:0; }
+  .stat h3 { font-size:25px; font-weight:700; line-height:1.08; margin:12px 0 6px; }
+  .stat p { font-size:16px; line-height:1.5; }
+  .stat .src { font-size:13.5px; color:var(--mid); margin-top:8px; }
+  .stat.hot { background:var(--asph); color:#fff; border-top-color:var(--hivis); }
+  .stat.hot .n { color:var(--hivis); font-size:clamp(46px, 13.4vw, 64px); line-height:.95; display:flex; flex-wrap:wrap; align-items:baseline; gap:0 .22em; letter-spacing:-.5px; }
+  .stat.hot .n .vs { font-size:.4em; color:#fff; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+  .stat.hot .src { color:#AEB3B1; }
+  .also { list-style:none; display:grid; gap:12px; margin-top:20px; }
+  .also li { display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:center; font-size:16px; line-height:1.4; }
+  .also b { font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:800; font-size:30px; line-height:1; }
+  .also b small { font-size:.55em; font-weight:700; }
+
+  /* ---------- the work ---------- */
+  .steps { display:grid; gap:16px; margin-top:26px; }
+  .step { border:2px solid var(--asph); border-radius:14px; padding:18px 18px 16px; background:#fff; display:flex; flex-direction:column; }
+  .step-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .num { width:38px; height:38px; border-radius:50%; background:var(--hivis); border:2px solid var(--asph); display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:800; font-size:22px; flex:none; color:var(--asph); }
+  .chip { font-size:14px; font-weight:600; padding:3px 9px; border-radius:4px; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; line-height:1.4; }
+  .chip.done { background:var(--asph); color:#fff; border:2px solid var(--asph); }
+  .chip.way { border:2px solid var(--asph); background:#fff; color:var(--asph); }
+  .chip.way::before { content:""; width:10px; height:16px; background:repeating-linear-gradient(135deg, var(--hivis) 0 3px, var(--asph) 3px 6px); }
+  .chip.ahead { border:2px solid var(--asph); background:#fff; color:var(--asph); }
+  .step h3 { font-size:29px; font-weight:700; line-height:1.05; margin-bottom:8px; }
+  .step p { margin-bottom:10px; }
+  .figs { font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:700; font-size:21px; line-height:1.2; background:var(--conc); border-radius:8px; padding:10px 12px; margin:2px 0 12px; }
+  .figs b { font-weight:800; font-size:1.4em; }
+  .step figure { margin:2px 0 12px; }
+  .step figure img { border-radius:8px; width:100%; background:var(--conc); }
+  .step figcaption { font-size:14px; color:var(--ink2); margin-top:6px; line-height:1.4; }
+  .aim { font-weight:600; }
+  .step details { margin-top:auto; }
+  .limits { margin-top:22px; font-size:16px; border-left:5px solid var(--asph); background:var(--conc); padding:12px 14px; border-radius:0 8px 8px 0; }
+
+  /* ---------- where it is heading ---------- */
+  .verbs { list-style:none; display:grid; gap:10px; margin:24px 0 8px; }
+  .verbs li { display:grid; grid-template-columns:118px 1fr; gap:14px; align-items:center; background:var(--panel); border-radius:12px; overflow:hidden; }
+  .verbs img { width:118px; height:88px; object-fit:cover; }
+  .verbs div { padding:8px 12px 8px 0; }
+  .verbs b { display:block; font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:800; font-size:30px; line-height:1; color:var(--hivis); }
+  .verbs span { font-size:16px; color:#E9EAE6; }
+  .site-grid { display:grid; gap:22px; margin-top:22px; }
+  .plan img { border-radius:12px; width:100%; }
+  .plan figcaption { font-size:14px; color:#C9CCCA; margin-top:8px; line-height:1.45; }
+  .key { list-style:none; margin:0 0 16px; }
+  .key li { display:flex; align-items:center; gap:10px; font-size:15px; line-height:1.4; margin:0 0 8px; color:#E4E5E1; }
+  .key img { flex:none; width:66px; height:24px; background:var(--conc); border-radius:3px; }
+  .goal { border:2px solid #5A6166; border-radius:14px; padding:16px 16px 14px; background:var(--panel); }
+  .goal .num { border-color:#fff; }
+  .goal .chip.ahead { background:transparent; color:#fff; border-color:#fff; }
+  .goal h3 { font-size:27px; font-weight:700; line-height:1.05; margin-bottom:6px; }
+  .goal p { font-size:16px; margin-bottom:8px; color:#E4E5E1; }
+  .goal details { background:var(--asph); }
+
+  /* ---------- work together ---------- */
+  .ways { list-style:none; display:grid; gap:12px; margin-top:24px; }
+  .ways li { background:#fff; border-radius:12px; padding:16px 16px 14px; border:2px solid var(--asph); }
+  .ways b { display:block; font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:700; font-size:25px; line-height:1.08; margin-bottom:5px; }
+  .ways p { font-size:16px; line-height:1.5; }
+  .yel .fine { color:var(--asph); }
+  .me { display:grid; gap:16px; margin-top:26px; background:var(--asph); color:#fff; border-radius:14px; padding:22px 20px; }
+  .mono { width:64px; height:64px; border-radius:50%; background:var(--hivis); color:var(--asph); display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight:800; font-size:30px; flex:none; }
+  .me h3 { font-size:32px; font-weight:800; line-height:1; }
+  .me p { font-size:16px; line-height:1.5; color:#E4E5E1; margin-top:8px; }
+  .me p.open { display:inline-block; margin-top:12px; font-weight:600; font-size:15.5px; background:var(--hivis); color:var(--asph); padding:5px 10px; border-radius:4px; }
+  .skills { list-style:none; display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .skills li { font-size:14px; font-weight:500; border:1.5px solid #6E7377; border-radius:999px; padding:3px 11px; color:#fff; }
+  .me .btns { margin-top:4px; }
+
+  /* ---------- questions, papers ---------- */
+  .faq { margin-top:20px; }
+  .faq details { margin:0 0 8px; }
+  .lists { display:grid; gap:26px; margin-top:20px; }
+  .lists h3 { font-size:24px; font-weight:700; margin-bottom:8px; }
+  .lists ul { padding-left:20px; }
+  .lists li { margin-bottom:7px; font-size:15.5px; line-height:1.5; }
+  footer { padding:26px 0 30px; font-size:14px; color:var(--ink2); }
+
+  /* ---------- sticky contact bar (phones) ---------- */
+  .bar { position:sticky; bottom:0; z-index:20; background:var(--asph2); padding:10px 12px; display:flex; gap:10px; justify-content:center; box-shadow:0 -2px 12px rgba(0,0,0,.25); }
+  .bar a { flex:1; max-width:320px; text-align:center; text-decoration:none; font-weight:600; padding:12px 8px; border-radius:8px; }
+  .bar a:focus-visible { outline-color:#fff; }
+  .bar .t { background:var(--hivis); color:var(--asph); }
+  .bar .c { background:#fff; color:var(--asph); }
+
+  /* ---------- below 960px the sticky bar already carries the two contact buttons ---------- */
+  @media (max-width:959px) {
+    .hero-copy .btns { display:none; }
+  }
+  /* ---------- phones: a tighter top so the comparison shows early; it runs edge to edge, with the scene buttons under it ---------- */
+  @media (max-width:699px) {
+    h1 { margin-top:14px; }
+    .lead { font-size:18px; line-height:1.4; margin:14px 0 12px; }
+    .demo { margin-top:20px; display:flex; flex-direction:column; }
+    .demo-head { display:contents; }
+    .demo h2 { order:1; margin-bottom:10px; }
+    .cmp { order:2; margin-left:-20px; margin-right:-20px; border-radius:0; }
+    .hint { order:3; }
+    .tabs { order:4; margin-top:12px; }
+    .score, .demo-note { order:5; }
+  }
+
+  /* ---------- wider screens ---------- */
+  @media (min-width:700px) {
+    .stats3 { grid-template-columns:repeat(3, 1fr); }
+    .stat .n { font-size:clamp(56px, 7.6vw, 96px); }
+    .stat.hot .n { font-size:clamp(34px, 4.6vw, 58px); }
+    .also { grid-template-columns:repeat(3, 1fr); gap:20px; }
+    .also li { grid-template-columns:1fr; gap:4px; align-items:start; }
+    .steps { grid-template-columns:repeat(2, 1fr); }
+    .step.wide { grid-column:1 / -1; }
+    .ways { grid-template-columns:repeat(2, 1fr); }
+    .lists { grid-template-columns:repeat(2, 1fr); }
+  }
+  @media (min-width:960px) {
+    body { font-size:18px; }
+    .top { padding-top:20px; }
+    .top ul { display:flex; }
+    .hero { padding-bottom:60px; }
+    h1 { font-size:clamp(70px, 7.6vw, 90px); margin-top:34px; }
+    .hero-grid { display:grid; grid-template-columns:minmax(0, 5fr) minmax(0, 7fr); grid-template-rows:auto 1fr; column-gap:48px; align-items:start; margin-top:14px; }
+    .hero-copy { grid-column:1; grid-row:1; }
+    .demo { grid-column:2; grid-row:1 / span 2; }
+    .demo-extra { grid-column:1; grid-row:2; margin-top:20px; }
+    .lead { font-size:21px; margin-top:26px; }
+    .demo { margin-top:26px; }
+    .band { padding:76px 0 68px; }
+    .step.wide { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:0 28px; }
+    .step.wide .step-fig { grid-column:2; grid-row:1 / span 6; align-self:center; }
+    .step.wide > :not(.step-fig) { grid-column:1; }
+    .verbs { grid-template-columns:repeat(5, 1fr); gap:14px; }
+    .verbs li { grid-template-columns:1fr; align-items:start; }
+    .verbs img { width:100%; height:auto; aspect-ratio:3 / 2; }
+    .verbs div { padding:12px 14px 14px; }
+    .site-grid { grid-template-columns:minmax(0, 7fr) minmax(0, 5fr); gap:36px; align-items:start; }
+    .me { grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:26px; padding:28px; }
+    .me .btns { flex-direction:column; align-items:stretch; }
+    .faq { columns:2; column-gap:20px; }
+    .faq details { break-inside:avoid; }
+    .bar { display:none; }
+  }
 </style>
 </head>
 <body>
-<header><div class="wrap">
-  <h1>Teaching cameras to sort construction waste</h1>
-  <p class="who">Yixuan Che, PhD candidate, Civil and Environmental Engineering, Monash University</p>
-</div></header>
-<main><div class="wrap">
-  <p class="note">The full page, with results, papers and how this could work at your site, goes live before CEEPC Industry Night on 23 November 2026.</p>
-  <p>Get in touch: <a href="mailto:yixuan.che@monash.edu">yixuan.che@monash.edu</a></p>
-</div></main>
+
+<header class="hero" id="top">
+  <div class="hz" aria-hidden="true"></div>
+  <div class="wrap">
+    <nav class="top" aria-label="Page">
+      <a class="brand" href="#top">Yixuan Che <span>· PhD research · Monash University</span></a>
+      <ul>
+        <li><a href="#see">See it work</a></li>
+        <li><a href="#why">Why it matters</a></li>
+        <li><a href="#built">The work</a></li>
+        <li><a href="#site">On your site</a></li>
+        <li><a href="#faq">Questions</a></li>
+        <li><a class="pill" href="#work">Let’s talk</a></li>
+      </ul>
+    </nav>
+
+    <h1>Sorting starts with seeing.</h1>
+
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="lead"><strong>I’m teaching cameras to outline and name every piece of construction and demolition waste</strong>, so each material stays clean enough to be used again. The goal: a system any C&amp;D recycler can deploy, that adapts to each site and keeps learning.</p>
+        <p class="status"><i aria-hidden="true"></i><span>Tested on images so far. <span class="nb">Next step: a real belt.</span></span></p>
+        <div class="btns">
+          <a class="btn y" href="mailto:yixuan.che@monash.edu?subject=CEEPC%20Industry%20Night%3A%20Sorting%20starts%20with%20seeing&amp;body=Hi%20Yixuan%2C%0D%0A%0D%0AI%20saw%20your%20poster%20at%20CEEPC%20Industry%20Night.%20I%27d%20like%20to%20talk%20about%3A%20"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email me</a>
+          <a class="btn g" href="yixuan-che.vcf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 16c.6-2 2-3 3.5-3s2.9 1 3.5 3M15 9h4M15 13h4"/></svg>Save contact</a>
+        </div>
+      </div>
+
+      <section class="demo" id="see" aria-labelledby="see-h">
+        <div class="demo-head">
+          <h2 id="see-h">See what the model sees</h2>
+          <div class="tabs" role="group" aria-label="Choose a test scene">
+            <button type="button" aria-pressed="true">Scene A</button>
+            <button type="button" aria-pressed="false">Scene B</button>
+            <button type="button" aria-pressed="false">Scene C</button>
+          </div>
+        </div>
+        <div class="cmp" id="cmp">
+          <img id="cmp-raw" src="img/scene0_raw.webp" srcset="img/scene0_raw-900.webp 900w, img/scene0_raw.webp 1400w" sizes="(max-width: 699px) 60vw, (max-width: 959px) calc(100vw - 40px), 620px" width="1400" height="788" fetchpriority="high" alt="Scene A without the model’s marks: the same 13 waste pieces (boards, foam, a PVC strip and a brick fragment) on a dark, site-like background">
+          <img id="cmp-out" class="cmp-over" src="img/scene0_output.webp" srcset="img/scene0_output-900.webp 900w, img/scene0_output.webp 1400w" sizes="(max-width: 699px) 60vw, (max-width: 959px) calc(100vw - 40px), 620px" width="1400" height="788" fetchpriority="high" alt="Scene A: pieces outlined and tagged by material family; one board tagged wrong in red; one missed foam strip shown as a yellow dashed outline">
+          <span class="cmp-label l" aria-hidden="true">Photo</span>
+          <span class="cmp-label r" aria-hidden="true">Model output</span>
+          <span class="cmp-bar" aria-hidden="true"><span class="cmp-knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 4 12l5 6M15 6l5 6-5 6"/></svg></span></span>
+          <input type="range" min="0" max="100" value="38" step="1" aria-valuetext="Photo 38%, model output 62%" aria-label="Slide to compare the photo with the model’s output">
+        </div>
+        <p class="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M3 12h18"/></svg>Drag the yellow handle to compare the photo with what the model drew.</p>
+        <ul class="score" id="score" aria-live="polite">
+          <li><b>13</b><span>pieces in the scene</span></li>
+          <li><b>11</b><span>named exactly right</span></li>
+          <li class="bad"><b>1</b><span>wrong name</span></li>
+          <li class="miss"><b>1</b><span>missed</span></li>
+        </ul>
+        <p class="demo-note" id="scene-note">13 pieces in the answer key. The model outlined 12 and named 11 exactly right. It called one timber board plywood: right family (WOOD), wrong exact name, so it is marked red. It missed one small XPS foam strip lying against another foam piece, and drew one outline round both. No false alarms.</p>
+      </section>
+      <div class="demo-extra">
+        <ul class="legend" aria-label="What the marks mean">
+          <li><span class="tag">WOOD</span>material family</li>
+          <li><span class="tag wrong">WRONG</span>exact name wrong</li>
+          <li><span class="tag missed">MISSED</span>a piece it missed (our mark)</li>
+        </ul>
+        <p class="honest">These are test scenes built from photos of real waste pieces: tidier than a real belt, and likely easier. The three scenes were drawn at random, not picked by eye. None of this is facility footage. That is what a trial would add.</p>
+        <details><summary>How these were picked, and what the marks mean</summary>
+          <ul>
+            <li><strong>Model:</strong> Sigma-T + OneFormer (fine-tuned), which also takes in depth estimated from the same image. Results come from one training run.</li>
+            <li><strong>Picking rule:</strong> from the 1,500-scene test set, keep the 1,364 scenes with at least 10 pieces, then let the computer draw three at random (random seed 23, so anyone can repeat the draw). Scene A is the first draw. None was chosen by eye.</li>
+            <li><strong>Outlines</strong> are traced from the model’s own masks (lightly simplified, no hand edits). Only those with a confidence score of 0.5 or more (out of 1) are shown.</li>
+            <li><strong>Tags</strong> group its 12 material names into families: WOOD (particle board, plywood, solid timber), FOAM (EPS, XPS, flexible and spray polyurethane), PLASTIC (HDPE, PVC), plus BRICK, CONCRETE and TILE. Red means its exact name was wrong.</li>
+            <li><strong>The yellow dashed outline and MISSED</strong> are our marks, taken from the scene’s answer key.</li>
+            <li><strong>Limits:</strong> these scenes were kept out of training, but they are built the same way as the training scenes (cut-out pieces on the same site-like backgrounds), so they are tidier than a real belt, and likely easier.</li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="band conc" id="why"><div class="wrap">
+  <p class="kicker">Why it matters</p>
+  <h2 class="big">Australia’s largest waste category is also its most recycled. What a load is worth depends on how clean it is.</h2>
+  <div class="stats3">
+    <article class="stat">
+      <p class="n">27.4<small>Mt</small></p>
+      <h3>The largest waste category</h3>
+      <p>Building and demolition materials: 27.4 million tonnes across Australia in 2024–25.</p>
+      <p class="src">DCCEEW 2026</p>
+    </article>
+    <article class="stat">
+      <p class="n">83<small>%</small></p>
+      <h3>Most of it is recovered</h3>
+      <p>Nationally, 83% of C&amp;D waste was recovered in 2024–25. Building and demolition materials were recycled in larger amounts than any other category: 23.2 million tonnes.</p>
+      <p class="src">DCCEEW 2026</p>
+    </article>
+    <article class="stat hot">
+      <p class="n"><span>$157</span><span class="vs">vs</span><span>$449</span></p>
+      <h3>But only clean loads are cheap</h3>
+      <p>At a Melbourne gate, clean concrete, bricks, tiles and rubble cost $157 a tonne to drop off. A contaminated load is charged as general waste: $449 a tonne.</p>
+      <p class="src">Cleanaway Brooklyn list prices incl. GST, checked 14 November 2026</p>
+    </article>
+  </div>
+  <ul class="also">
+    <li><b>44<small>%</small></b><span>of all waste generated in Victoria comes from construction and demolition: 6.2 million tonnes in 2023–24.</span></li>
+    <li><b>2053</b><span>Victoria expects it to grow to over half of all its waste (53%) by 2053.</span></li>
+    <li><b>97<small>%</small> / 11<small>%</small></b><span>In Victoria, 97% of concrete is recovered, but only 11% of plaster.</span></li>
+  </ul>
+  <p class="fine">These figures show what is at stake, not savings from this system.</p>
+  <details><summary>More numbers and sources</summary>
+    <ul>
+      <li><strong>At the gate.</strong> Cleanaway Brooklyn (Melbourne), list prices including GST, checked 14 November 2026: clean concrete, bricks, tiles and rubble $157 per tonne; general waste $449 per tonne. Contaminated loads, including cement sheeting, are charged the general-waste rate. <a href="https://cleanaway.bynder.com/asset/d5a5742d-a098-4db5-a85b-0fa569da85a8/Brooklyn-Pricing-Flyer-Update-July-1-2026.pdf">Price list (PDF, 237 KB)</a></li>
+      <li><strong>Landfill levy.</strong> EPA Victoria, metropolitan industrial waste: $169.79 per tonne in 2025–26, $177.19 in 2026–27. <a href="https://www.epa.vic.gov.au/waste-levy">EPA Victoria</a></li>
+      <li><strong>Recovery by material.</strong> Victoria recovered 5.1 million tonnes of its C&amp;D waste in 2023–24 (83%). Concrete recovery was 97% and brick 90%, but plaster only 11%. Recycled crushed concrete sells for $10–70 per tonne, against $60–120 for virgin road base. <a href="https://www.epa.vic.gov.au/sites/default/files/2026-06/Circular-Economy-Market-Report-2026.pdf">Circular Economy Market Report 2026 (PDF, 4.6 MB)</a></li>
+      <li><strong>Growth.</strong> Victoria’s total waste is projected to nearly double over the next 30 years: up about 93%, to an estimated 27 million tonnes in 2053. (Circular Economy Market Report 2026)</li>
+      <li><strong>Product limits.</strong> NSW Recovered Aggregate Order 2014: gypsum at most 0.25% on average (0.5% maximum) in recovered aggregate. <a href="https://www.epa.nsw.gov.au/sites/default/files/rro14-aggregate.pdf">NSW EPA (PDF, 74 KB)</a></li>
+      <li><strong>Safety.</strong> NSW guidance has incoming loads tipped, spread and inspected for asbestos by trained workers wearing P1/P2 respirators. <a href="https://www.safework.nsw.gov.au/__data/assets/pdf_file/0016/51730/SW08774-Management-of-asbestos-in-recycled-construction-and-demolition-waste-guide.pdf">SafeWork NSW (PDF, 1.3 MB)</a></li>
+    </ul>
+    <p>The model in the test pictures does not name cement sheeting (the contaminant the price list names) or plasterboard (the gypsum in the NSW limit); for plasterboard, see <a href="#faq">Questions</a>.</p>
+    <p>Sources: DCCEEW, <a href="https://www.dcceew.gov.au/environment/protection/waste/publications/national-waste-resource-recovery-report-2026">National waste and resource recovery report 2026</a> (2024–25 data). Recycling Victoria, <a href="https://www.epa.vic.gov.au/sites/default/files/2026-06/Circular-Economy-Market-Report-2026.pdf">Circular Economy Market Report 2026 (PDF, 4.6 MB)</a>, pages 28–29 (2023–24 data; projections by Recycling Victoria).</p>
+  </details>
+</div></section>
+
+<section class="band" id="built"><div class="wrap">
+  <p class="kicker">The work</p>
+  <h2 class="big">What’s done, and what’s next.</h2>
+  <p class="sub">Six parts, from training data to learning on site, with where each one stands. The detail sits behind each “Numbers and limits”.</p>
+
+  <div class="steps">
+    <article class="step wide" id="1">
+      <div class="step-top"><span class="num" aria-hidden="true">1</span><span class="chip done">Done</span></div>
+      <h3><span class="vh">Part 1: </span>Label once</h3>
+      <p>Each real waste piece is outlined once. A program then pastes the pieces into new scenes on site-like backgrounds, with as much clutter and overlap as we choose, and every new picture comes with its labels.</p>
+      <p class="figs"><b>52,000</b> labelled images from <b>18,000</b> pieces, across <b>12</b> materials</p>
+      <p class="aim">→ Aim: less hand-labelling at new sites.</p>
+      <figure class="step-fig"><img src="img/fusion_split.webp" srcset="img/fusion_split-800.webp 800w, img/fusion_split.webp 1400w" sizes="(max-width: 960px) calc(100vw - 80px), 500px" width="1400" height="787" alt="A generated training scene; the right half shows its automatic material labels" loading="lazy">
+        <figcaption>A generated scene. Right half: the labels it comes with, coloured by material. The program makes them as it builds the scene, so nobody has to draw them.</figcaption></figure>
+      <details><summary>Numbers and limits<span class="vh"> for part 1</span></summary>
+        <ul>
+          <li>The poster’s two research panels come from this study: Dataset Generation Pipeline (how the scenes are built) and Deep Learning Algorithms (the three model set-ups trained on them).</li>
+          <li>18,000 pieces cut from 2,259 real source photos (online images, our own photography and open datasets such as CODD). Each outline was drawn by hand once or converted from existing labels.</li>
+          <li>52,000 images at 1920 × 1080 across 12 materials: concrete, clay brick, tile, HDPE, PVC, EPS, XPS, flexible and spray polyurethane foam, particle board, plywood and solid timber.</li>
+          <li>0.74 s per image, labels included, on a laptop CPU.</li>
+          <li>Models trained on it: YOLOv11-L and YOLOv12-L, which find, name and outline pieces in one go, and RF-DETR, which finds and names pieces and hands each one to SAM 2 to draw the outline.</li>
+          <li>In our tests, the busiest setting trained the best model: with 14 pieces per image, a YOLOv12 model scored 0.750 on a standard accuracy score from 0 to 1 (mask mAP), against 0.689 with 5 pieces and 0.694 with 7, about the same as 5. One training run each, tested on computer-made scenes.</li>
+          <li>How much labelling a new site would still need has not been measured.</li>
+          <li>Paper: <em>Waste Management</em> (2026), listed under <a href="#papers">Status and papers</a>. It notes that the dataset and pipeline have not yet been checked on camera feeds from a working facility. In its words:</li>
+        </ul>
+        <blockquote>“their sensitivity and discriminative power on facility camera feeds have not yet been validated.”</blockquote>
+      </details>
+    </article>
+
+    <article class="step" id="2">
+      <div class="step-top"><span class="num" aria-hidden="true">2</span><span class="chip done">Done</span></div>
+      <h3><span class="vh">Part 2: </span>Better model training?</h3>
+      <p>During training, photos are usually varied on purpose (flipped, recoloured, mixed together) so the model sees more variety. This study tested which variations actually help with C&amp;D waste, using public photos of waste on a conveyor belt.</p>
+      <p class="figs"><b>80</b> variations on <b>20</b> fast models: the resulting recipe beat the standard one on <b>19</b> of 20</p>
+      <p class="aim">→ Gains on nearly every model, some small.</p>
+      <details><summary>Numbers and limits<span class="vh"> for part 2</span></summary>
+        <ul>
+          <li>80 variations tested on 20 fast detection models (the kind built to keep up with live video), trained on CODD, a public set of photos of C&amp;D waste on a conveyor belt.</li>
+          <li>Changing colours helped little or made results worse; mixing and overlapping objects helped most.</li>
+          <li>The resulting recipe beat the standard recipe on 19 of the 20 models (one training run each; some gains are small).</li>
+          <li>Second check on ReCoDeWaste, a public dataset of cluttered C&amp;D waste piles from our lab group. With this recipe, the smallest YOLO26 model found 57 of every 100 pieces (averaged across materials), against 54 with the standard recipe and 46 with none. False alarms are not counted in that figure.</li>
+          <li>Paper in preparation, so the numbers may change in review.</li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="step" id="3">
+      <div class="step-top"><span class="num" aria-hidden="true">3</span><span class="chip way">In progress</span></div>
+      <h3><span class="vh">Part 3: </span>Fast enough?</h3>
+      <p>On a belt, the answer must reach the pickers before the piece does. This study compares seven versions of one model on speed and accuracy, so a site could pick one that keeps up with its line.</p>
+      <p class="aim">→ Aim: match your line’s speed.</p>
+      <details><summary>Numbers and limits<span class="vh"> for part 3</span></summary>
+        <ul>
+          <li>Seven versions of one model: six use different last steps (the part that draws and names the outlines); one adds an extra part to the first step (the part that reads the image).</li>
+          <li>Speed so far: the starting version (Sigma-T + Mask R-CNN, not the version in the test pictures) takes about 139 ms per image (about 7 a second) on one large data-centre graphics card (NVIDIA A100), one image at a time, standard 32-bit settings. That is the model step alone, with its depth input switched off.</li>
+          <li>Estimating depth takes about 197 ms per image, timed on its own. The whole chain with depth has not yet been timed in one go.</li>
+          <li>Accuracy figures will follow when the runs with depth finish. Nothing has been tested on site hardware.</li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="step" id="4">
+      <div class="step-top"><span class="num" aria-hidden="true">4</span><span class="chip way">In review</span></div>
+      <h3><span class="vh">Part 4: </span>3D from a normal camera?</h3>
+      <p>Software can estimate depth from an ordinary image, with no depth sensor. On test scenes, does feeding that depth to the model help it outline each piece? Three ways of feeding it in were tested.</p>
+      <p class="aim">→ So far, model choice beat adding depth.</p>
+      <figure><img src="img/depth_pair.webp" width="1400" height="386" alt="A test scene and the relative depth estimated from it (lighter = nearer)" loading="lazy">
+        <figcaption>A test scene, and the depth software estimates from it: lighter is nearer. It shows what is nearer than what, not distances in millimetres.</figcaption></figure>
+      <details><summary>Where this stands<span class="vh"> for part 4</span></summary>
+        <p>In review. How much depth adds is held until a re-check of the depth inputs is complete; the gap between models, measured without depth, does not depend on that check.</p>
+      </details>
+    </article>
+
+    <article class="step" id="5">
+      <div class="step-top"><span class="num" aria-hidden="true">5</span><span class="chip ahead">Next</span></div>
+      <h3><span class="vh">Part 5: </span>Low-cost 3D camera</h3>
+      <p>A low-cost 3D camera judges depth from two side-by-side lenses, like a pair of eyes. It will photograph about 450 real C&amp;D pieces, to measure for which materials real depth helps and for which it does not. Capture is planned for 2026–27.</p>
+      <p class="aim">→ Where does 3D pay off?</p>
+      <details><summary>Plan and pilot<span class="vh"> for part 5</span></summary>
+        <p>The camera is a Luxonis OAK-D PoE. See-through glass is a hard case for depth cameras. Thin, flat pieces (plasterboard, flat glass, tile, cardboard and film) are the control group: they lie too flat for this camera to tell them apart from the surface beneath, so depth is not expected to help there.</p>
+        <ul>
+          <li>9 material groups, 18 types: aggregate (concrete, clay brick, ceramic tile); wood (solid timber, engineered panel); plastic (PVC, other rigid, film); polystyrene (EPS, XPS); polyurethane (flexible, rigid or spray); plasterboard; glass (flat, container); metal (ferrous, non-ferrous); cardboard.</li>
+          <li>Capture has not started.</li>
+          <li>Pilot so far, with kitchen glass cups (not C&amp;D waste). Using one AI method that reads depth from the two lenses, the average depth error on the glass was 10.1 mm on a black background, against 32–33 mm on white or grey cloth. Preliminary: part of that error may come from the reference measurement.</li>
+        </ul>
+        <figure><img src="img/glass_trio.webp" width="1400" height="183" alt="Three glass cups: a photo; the camera’s own depth, which is noisy and mostly missing on the glass; and a learned stereo method, which recovers more of the cup shapes" loading="lazy">
+          <figcaption>Pilot with glass cups: photo, the camera’s own depth, and the AI method above.</figcaption></figure>
+      </details>
+    </article>
+  </div>
+
+  <p class="limits"><strong>Limits so far:</strong> nothing has been tested on a working facility’s camera feed yet. Results so far come from images: test scenes built from photos of real pieces, and public image datasets. No company is a partner yet.</p>
+</div></section>
+
+<section class="band dark" id="site"><div class="wrap">
+  <p class="kicker">On your site</p>
+  <h2 class="big">Next: an AI agent that works with the sorting team.</h2>
+  <p class="sub">This is where the research is heading; none of it is installed anywhere yet. On a site, the agent would:</p>
+  <ol class="verbs">
+    <li><img src="img/verb_see.webp" width="660" height="440" alt="A camera station over the belt, drawn in translucent blue" loading="lazy"><div><b>See</b><span>what’s on the belt</span></div></li>
+    <li><img src="img/verb_warn.webp" width="660" height="440" alt="A screen at the entrance of the picking cabin, above the pickers" loading="lazy"><div><b>Warn</b><span>pickers what’s coming</span></div></li>
+    <li><img src="img/verb_ask.webp" width="660" height="440" alt="A control-room screen showing one piece and two buttons" loading="lazy"><div><b>Ask</b><span>a person when unsure</span></div></li>
+    <li><img src="img/verb_learn.webp" width="660" height="440" alt="An ochre line carrying the person’s answer back to the computer cabinet" loading="lazy"><div><b>Learn</b><span>each site’s materials</span></div></li>
+    <li><img src="img/verb_report.webp" width="660" height="440" alt="A control-room screen showing a bar chart of pieces by material" loading="lazy"><div><b>Report</b><span>each shift</span></div></li>
+  </ol>
+  <p class="sub">Asking and learning on site are the end goal (part 6). It would inform; people or machines would still do the sorting. It does not detect asbestos and does not replace trained inspection.</p>
+
+  <div class="site-grid">
+    <figure class="plan"><a href="img/plan_concept-2400.webp"><img src="img/plan_concept.webp" srcset="img/plan_concept-800.webp 800w, img/plan_concept.webp 1400w" sizes="(max-width: 960px) calc(100vw - 40px), 620px" width="1400" height="1391" alt="Top-down drawing of a C&amp;D recycling site: a truck on the weighbridge, a loader on the tipping floor, a belt through a picking cabin with four pickers and bays of wood, plastic and foam, then a crusher, screen, magnet and stockpiles. Drawn in translucent blue as not installed: a camera over the belt, a computer cabinet, a screen for the pickers and two screens in the control room." loading="lazy"></a>
+      <figcaption>The site drawing from the poster, from above (simplified; not a specific plant, and not to scale: the belt and pieces are drawn larger so they can be seen). Tap to open full size.</figcaption></figure>
+    <div>
+      <ul class="key" aria-label="Key to the drawing">
+        <li><img src="img/key_plant_today.svg" width="66" height="24" alt="">Plant today</li>
+        <li><img src="img/key_research_on_belt.svg" width="66" height="24" alt="">This research would add (translucent blue; not installed)</li>
+        <li><img src="img/key_data_line.svg" width="66" height="24" alt="">Predicting loop: what the camera sees goes to the pickers’ screen and the control room</li>
+        <li><img src="img/key_learning_loop.svg" width="66" height="24" alt="">Learning loop: a person’s answers go back to the model (the goal)</li>
+      </ul>
+      <article class="goal" id="6">
+        <div class="step-top"><span class="num" aria-hidden="true">6</span><span class="chip ahead">Goal</span></div>
+        <h3><span class="vh">Part 6: </span>Unsure? It’ll ask.</h3>
+        <p>It would flag pieces it is unsure of. A person would confirm, and the model would update on site.</p>
+        <p class="aim">→ Aim: keep up as materials change.</p>
+        <details><summary>Open questions<span class="vh"> for part 6</span></summary>
+          <ul>
+            <li>This is the end goal, not a current study.</li>
+            <li>Today’s confidence scores have not been checked against how often the model is actually wrong, so deciding when to ask is still open work.</li>
+            <li>A partner site would help answer: how often a person is asked, who approves an update, and how an update is recorded and undone if needed.</li>
+          </ul>
+        </details>
+      </article>
+    </div>
+  </div>
+</div></section>
+
+<section class="band yel" id="work"><div class="wrap">
+  <p class="kicker">Work with me</p>
+  <h2 class="big">Interested? Let’s talk.</h2>
+  <p class="sub">Trials, data, ideas or roles: open to all of it. Some starting points:</p>
+  <ul class="ways">
+    <li><b>Share footage or photos you already have</b><p>The current models would be run on them offline at Monash, and you would get back a plain summary of what they picked out and which common materials are outside what they know. It is a first look, not a measured result: their accuracy on real footage is untested. Nobody comes on site and nothing connects to plant systems.</p></li>
+    <li><b>Host a short trial</b><p>A temporary camera over one belt, pointed at the belt only and not connected to any controls.</p></li>
+    <li><b>Make an introduction</b><p>An introduction to a recycler, site or team that might care helps just as much.</p></li>
+    <li><b>Collaborate</b><p>Data, ideas, research partnerships or funding.</p></li>
+  </ul>
+  <p class="fine">Any arrangement goes through Monash and is agreed before anything is shared, including what can be made public. Duration, inductions and insurance are agreed case by case.</p>
+
+  <div class="me" id="me">
+    <div class="mono" aria-hidden="true">YC</div>
+    <div>
+      <h3>Yixuan Che</h3>
+      <p>PhD candidate (Year 3), Department of Civil and Environmental Engineering, Monash University. Supervisors: Mehrdad Arashpour and Yiannis Ventikos.</p>
+      <p>What I work on: computer vision for cluttered scenes, from synthetic training data and instance segmentation to model speed and depth sensing.</p>
+      <ul class="skills" aria-label="Skills">
+        <li>Object detection</li><li>Segmentation</li><li>Vision language models</li><li>Agent development</li><li>Python</li><li>R</li>
+      </ul>
+      <p class="open">Open to computer vision and AI roles from 2027. CV on request.</p>
+    </div>
+    <div class="btns">
+      <a class="btn y" href="mailto:yixuan.che@monash.edu?subject=CEEPC%20Industry%20Night%3A%20Sorting%20starts%20with%20seeing&amp;body=Hi%20Yixuan%2C%0D%0A%0D%0AI%20saw%20your%20poster%20at%20CEEPC%20Industry%20Night.%20I%27d%20like%20to%20talk%20about%3A%20"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>yixuan.che@monash.edu</a>
+      <a class="btn w" href="yixuan-che.vcf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 16c.6-2 2-3 3.5-3s2.9 1 3.5 3M15 9h4M15 13h4"/></svg>Save contact</a>
+    </div>
+  </div>
+</div></section>
+
+<section class="band" id="faq"><div class="wrap">
+  <p class="kicker">Questions</p>
+  <h2 class="big">Straight answers.</h2>
+  <div class="faq">
+    <details><summary>Are the test pictures the model’s actual output?</summary>
+      <p>Yes. The outlines are traced from the model’s own masks (lightly simplified, no hand edits), at a confidence of 0.5 or more. The tags group its 12 material names into families, and red marks an exact name it got wrong. The yellow dashed outline and MISSED are our marks from the scene’s answer key. The scenes were kept out of training, but they are built the same way as the training scenes (cut-out photos of real pieces on site-like backgrounds), so they are tidier than a real belt, and likely easier. See <a href="#see">the test scenes</a>.</p></details>
+    <details><summary>Has it looked at a real plant belt, with dust, mud and stuff piled three deep?</summary>
+      <p>Not yet. Everything so far uses images: test scenes built from photos of real pieces, and public image datasets. That is why a test on a real belt is needed; it would need a site willing to host one.</p></details>
+    <details><summary>Out of 100 pieces, how many does it get right today?</summary>
+      <p>No figure from a working facility yet. One example, from the training study in part 2 (paper in preparation): on ReCoDeWaste, cluttered C&amp;D piles from our lab group, the smallest YOLO26 model found about 57 of every 100 pieces (averaged across materials) with our training recipe. That compares with 54 using the standard recipe and 46 with none. False alarms are not counted.</p></details>
+    <details><summary>Does it pick up asbestos, fibre-cement sheeting, gas bottles or batteries?</summary>
+      <p>No. None of the studies covers them, and it does not replace trained inspection.</p></details>
+    <details><summary>Which materials can it name today?</summary>
+      <p>The model in the test outputs names 12 materials: concrete, clay brick, tile, HDPE and PVC plastics, EPS and XPS polystyrene, flexible and spray polyurethane foam, particle board, plywood and solid timber. In a separate study (part 2, paper in preparation), models were trained on public C&amp;D image datasets that also include plasterboard (CODD, where it was among the easiest materials), metal and cardboard (ReCoDeWaste). None of this has been tested at a plant. Glass is planned for part 5.</p></details>
+    <details><summary>What would working together cost me, and who owns the footage?</summary>
+      <p>Not defined yet. Costs, and who owns and may use any footage, would be agreed through Monash before anything is shared. Possible first steps are listed under <a href="#work">Work with me</a>.</p></details>
+    <details><summary>Once it recognises something, then what?</summary>
+      <p>Today it outlines and names pieces in an image. The aim is to support sorting decisions: it would warn pickers what is coming and report to the control room what came in each shift, and people or machines would sort. Possible first steps are listed under <a href="#work">Work with me</a>.</p></details>
+    <details><summary>How does it go on plasterboard in the concrete line?</summary>
+      <p>Not tested on a working line yet. In our training study (part 2, paper in preparation) on a public conveyor-belt dataset (CODD), plasterboard (gypsum board) was among the easiest materials for the models we tested; whether that holds in dust and clutter is untested. In part 5, plasterboard is one of the thin, flat pieces in the control group: they lie too flat for a low-cost depth camera to tell them apart from the surface beneath, so depth is not expected to help there.</p></details>
+    <details><summary>What about dust? By smoko everything is the same grey.</summary>
+      <p>Not tested on dusty belts. A related finding: changing colours during training helped little or made results worse, which suggests the models lean on colour, so dust may hurt. Another reason a test on a working belt is needed.</p></details>
+    <details><summary>What does it run on, and what would it cost?</summary>
+      <p>Speed has only been measured on a large data-centre graphics card (one NVIDIA A100): about 139 ms per image, or about 7 a second, for the starting version (not the one in the pictures) with its depth input switched off. Estimating depth, timed on its own, takes about 197 ms per image; the whole chain with depth has not been timed in one go. Site computers, enclosures, dust and lens cleaning have not been tested, and no cost estimate exists.</p></details>
+    <details><summary>Who confirms the pieces it is unsure about?</summary>
+      <p>Not designed or tested yet: learning on site is the end goal. When and how often a person is asked would be worked out with a partner site.</p></details>
+    <details><summary>How is this different from commercial sorting systems?</summary>
+      <p>No comparison has been done, and commercial systems already exist. This PhD asks narrower questions: how little labelling a new C&amp;D site needs, and when a cheap depth camera adds anything.</p></details>
+    <details><summary>Can it give me tonnes, or only counts?</summary>
+      <p>No, not tonnes. Current work outlines and names pieces in images; no study measures weight.</p></details>
+    <details><summary>Who pays and who saves?</summary>
+      <p>Gate fees are paid by whoever delivers the load. No savings estimate exists for this system at any site. The public prices under <a href="#why">Why it matters</a> only show what contamination costs. A first trial would only test recognition on your footage; any effect on costs is a later question.</p></details>
+    <details><summary>Could it check loads in trucks, skips or bins, or watch the tipping floor instead?</summary>
+      <p>Not tested. The studies so far use test scenes on site-like backgrounds and public photos of waste on a conveyor belt or in piles; recognising waste inside truck bodies, skips or bins has not been tried. A fair idea to discuss.</p></details>
+    <details><summary>Is this a product or a thesis?</summary>
+      <p>Right now it is a PhD thesis at Monash (Year 3), not a product. Whether it could become one is an open question, and I’d welcome candid views. I’m open to any opportunity this work could lead to, including computer vision and AI roles from 2027.</p></details>
+  </div>
+</div></section>
+
+<section class="band conc" id="papers"><div class="wrap">
+  <p class="kicker">For the record</p>
+  <h2 class="big">Status, papers and sources.</h2>
+  <div class="lists">
+    <div>
+      <h3>Status and papers</h3>
+      <ul>
+        <li><strong>Done:</strong> part 1, Label once. Che, Y., Ventikos, Y. &amp; Arashpour, M. (2026). FUSION-CDW: Automated curation of scalable datasets for enhancing construction and demolition waste valorisation. <em>Waste Management</em>. <a href="https://doi.org/10.1016/j.wasman.2026.115623">doi:10.1016/j.wasman.2026.115623</a></li>
+        <li><strong>Done:</strong> part 2, Better model training? Paper in preparation.</li>
+        <li><strong>In progress:</strong> part 3, Fast enough?</li>
+        <li><strong>In review:</strong> part 4, 3D from a normal camera?</li>
+        <li><strong>Next (2026–27):</strong> part 5, Low-cost 3D camera.</li>
+        <li><strong>Goal:</strong> part 6, Unsure? It’ll ask.</li>
+      </ul>
+      <p style="margin-top:10px;font-size:15.5px">Thesis: <em>Adaptive AI Perception for Construction and Demolition Waste Recovery.</em></p>
+    </div>
+    <div>
+      <h3>Sources and credits</h3>
+      <ul>
+        <li>DCCEEW, National waste and resource recovery report 2026 (2024–25 data), 22 September 2026.</li>
+        <li>Recycling Victoria (Department of Energy, Environment and Climate Action), Circular Economy Market Report 2026 (2023–24 data), April 2026.</li>
+        <li>Cleanaway Brooklyn price list (prices include GST), checked 14 November 2026.</li>
+        <li>EPA Victoria, waste levy rates.</li>
+        <li>NSW EPA, Recovered Aggregate Order 2014.</li>
+        <li>SafeWork NSW, management of asbestos in recycled construction and demolition waste.</li>
+        <li>Test scenes and generated scenes: FUSION-CDW (Che, Ventikos &amp; Arashpour, 2026).</li>
+        <li>CODD: Demetriou et al. (2024), <em>Waste Management</em>.</li>
+        <li>ReCoDeWaste: Prasad &amp; Arashpour (2025), <em>Waste Management</em> 207, 115123.</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+</main>
+<footer><div class="wrap">Last updated 20 November 2026.</div></footer>
+
+<aside class="bar" aria-label="Quick contact">
+  <a class="t" href="mailto:yixuan.che@monash.edu?subject=CEEPC%20Industry%20Night%3A%20Sorting%20starts%20with%20seeing&amp;body=Hi%20Yixuan%2C%0D%0A%0D%0AI%20saw%20your%20poster%20at%20CEEPC%20Industry%20Night.%20I%27d%20like%20to%20talk%20about%3A%20">Email me</a>
+  <a class="c" href="yixuan-che.vcf">Save contact</a>
+</aside>
+
+<script>
+(function () {
+  var cmp = document.getElementById('cmp');
+  if (!cmp) return;
+  var range = cmp.querySelector('input'), raw = document.getElementById('cmp-raw'), out = document.getElementById('cmp-out');
+  var note = document.getElementById('scene-note'), cells = document.querySelectorAll('#score b'), tabs = document.querySelectorAll('.tabs button');
+  var SCENES = [
+    { id: 'scene0', n: [13, 11, 1, 1],
+      altRaw: 'Scene A without the model’s marks: the same 13 waste pieces (boards, foam, a PVC strip and a brick fragment) on a dark, site-like background',
+      altOut: 'Scene A: pieces outlined and tagged by material family; one board tagged wrong in red; one missed foam strip shown as a yellow dashed outline',
+      note: '13 pieces in the answer key. The model outlined 12 and named 11 exactly right. It called one timber board plywood: right family (WOOD), wrong exact name, so it is marked red. It missed one small XPS foam strip lying against another foam piece, and drew one outline round both. No false alarms.' },
+    { id: 'scene1', n: [16, 13, 3, 0],
+      altRaw: 'Scene B without the model’s marks: 16 waste pieces (boards, plastic strips, foam, tile and a concrete piece) on a dark, site-like background',
+      altOut: 'Scene B: all sixteen pieces outlined; three tagged wrong in red',
+      note: '16 pieces in the answer key. The model outlined all 16 and named 13 exactly right. Three wrong names: a concrete piece called tile, a tile piece called EPS foam and a timber strip called plywood. Nothing missed, no false alarms.' },
+    { id: 'scene2', n: [12, 12, 0, 0],
+      altRaw: 'Scene C without the model’s marks: 12 waste pieces (foam, concrete, tile, a plastic strip and a timber strip) on a dark, site-like background',
+      altOut: 'Scene C: all twelve pieces outlined and named right',
+      note: '12 pieces in the answer key. The model outlined all 12 and named every one exactly right. Nothing missed, no false alarms.' }
+  ];
+  var touched = false, drag = false, cur = 38;
+  function set(v) {
+    cur = v = Math.max(0, Math.min(100, v));
+    var r = Math.round(v);
+    cmp.style.setProperty('--pos', v + '%'); range.value = r;
+    range.setAttribute('aria-valuetext', 'Photo ' + r + '%, model output ' + (100 - r) + '%');
+  }
+  function at(e) { var r = cmp.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); }
+  cmp.addEventListener('pointerdown', function (e) { drag = true; touched = true; try { cmp.setPointerCapture(e.pointerId); } catch (x) {} at(e); });
+  cmp.addEventListener('pointermove', function (e) { if (drag) at(e); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (n) { cmp.addEventListener(n, function () { drag = false; }); });
+  range.addEventListener('input', function () { touched = true; set(+range.value); });
+  // keyboard: arrow keys move the handle in steps of 5, Page Up / Page Down in steps of 20, Home / End go to the ends
+  range.addEventListener('keydown', function (e) {
+    var d = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -20, PageUp: 20, Home: -100, End: 100 }[e.key];
+    if (!d) return;
+    e.preventDefault(); touched = true; set(cur + d);
+  });
+
+  // each picture comes in two widths; the browser takes the smaller one on phones
+  var SIZES = raw.sizes, token = 0;
+  function file(id, kind, w) { return 'img/' + id + '_' + kind + (w ? '-' + w : '') + '.webp'; }
+  function fill(im, id, kind) { im.sizes = SIZES; im.srcset = file(id, kind, 900) + ' 900w, ' + file(id, kind) + ' 1400w'; im.src = file(id, kind); return im; }
+  function show(i) {
+    var s = SCENES[i], t = ++token, pair = [fill(new Image(), s.id, 'raw'), fill(new Image(), s.id, 'output')];
+    tabs.forEach(function (b2, k2) { b2.setAttribute('aria-pressed', String(k2 === i)); });
+    cmp.classList.add('busy');
+    Promise.all(pair.map(function (im) { return im.decode ? im.decode().catch(function () {}) : Promise.resolve(); })).then(function () {
+      if (t !== token) return;
+      fill(raw, s.id, 'raw').alt = s.altRaw; fill(out, s.id, 'output').alt = s.altOut;
+      note.textContent = s.note;
+      for (var k = 0; k < 4; k++) cells[k].textContent = s.n[k];
+      cells[2].parentNode.className = s.n[2] ? 'bad' : '';
+      cells[3].parentNode.className = s.n[3] ? 'miss' : '';
+      cmp.classList.remove('busy');
+    });
+  }
+  tabs.forEach(function (b, k) { b.addEventListener('click', function () { show(k); }); });
+
+  // fetch the other two scenes once the page has loaded, so switching is instant (skipped when the phone asks to save data)
+  window.addEventListener('load', function () {
+    if (navigator.connection && navigator.connection.saveData) return;
+    setTimeout(function () { for (var i = 1; i < SCENES.length; i++) { fill(new Image(), SCENES[i].id, 'raw'); fill(new Image(), SCENES[i].id, 'output'); } }, 1200);
+  });
+
+  // one gentle sweep the first time the comparison scrolls into view, so people see it moves
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      if (!es[0].isIntersecting) return;
+      io.disconnect();
+      var keys = [[0, 38], [0.4, 74], [0.8, 20], [1, 38]], t0 = null;
+      function step(t) {
+        if (touched) return;
+        if (t0 === null) t0 = t;
+        var u = Math.min(1, (t - t0) / 2000), i = 1;
+        while (keys[i][0] < u) i++;
+        var p = keys[i - 1], q = keys[i], w = (u - p[0]) / (q[0] - p[0]);
+        w = w * w * (3 - 2 * w);
+        set(p[1] + (q[1] - p[1]) * w);
+        if (u < 1) requestAnimationFrame(step);
+      }
+      setTimeout(function () { requestAnimationFrame(step); }, 600);
+    }, { threshold: 0.6 });
+    io.observe(cmp);
+  }
+})();
+</script>
 </body>
 </html>

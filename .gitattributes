@@ -1,0 +1,2 @@
+# keep the contact card byte for byte (it needs CRLF line ends)
+*.vcf -text
